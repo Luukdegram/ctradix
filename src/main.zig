@@ -1,4 +1,5 @@
 const std = @import("std");
+const testing = std.testing;
 
 pub fn RadixTree(comptime T: type) type {
     return struct {
@@ -13,13 +14,41 @@ pub fn RadixTree(comptime T: type) type {
                 return self.leaf != null;
             }
 
-            fn addEdge(self: *Node, comptime e: Edge) void {}
+            fn addEdge(self: *Node, comptime e: Edge) void {
+                if (self.edges.len == 0) {
+                    var edges: [1]Edge = .{e};
+                    self.edges = &edges;
+                    return;
+                }
+                var edges: [self.edges.len + 1]Edge = undefined;
+                std.mem.copy(Edge, &edges, self.edges[0..]);
+                edges[edges.len - 1] = e;
 
-            fn lessThan(node: Node, lhs: u8, rhs: u8) bool {
-                return node.edges[lhs].label < node.edges[rhs].label;
+                std.sort.sort(Edge, &edges, {}, lessThan);
+                self.edges = &edges;
             }
 
-            fn edge(self: Node, label: u8) ?Node {
+            fn updateEdge(self: *Node, comptime label: u8, comptime node: Node) void {
+                const idx = blk: {
+                    var i: usize = 0;
+                    while (i < self.edges.len) : (i += 1) {
+                        if (self.edges[i].label >= label) break;
+                    }
+                    break :blk i;
+                };
+
+                if (idx < self.edges.len and self.edges[idx].label == label) {
+                    self.edges[idx] = node;
+                }
+
+                @compileError("Edge with label '" ++ &[_]u8{u8} ++ "' does not exist\n");
+            }
+
+            fn lessThan(ctx: void, comptime lhs: Edge, comptime rhs: Edge) bool {
+                return lhs.label < rhs.label;
+            }
+
+            fn edge(self: *Node, comptime label: u8) ?*Node {
                 const idx = blk: {
                     var i: usize = 0;
                     while (i < self.edges.len) : (i += 1) {
@@ -29,7 +58,7 @@ pub fn RadixTree(comptime T: type) type {
                 };
 
                 if (idx < self.edges.len and self.edges[idx].label == label)
-                    return self.edges[idx].node;
+                    return &self.edges[idx].node;
 
                 return null;
             }
@@ -53,10 +82,10 @@ pub fn RadixTree(comptime T: type) type {
         size: usize = 0,
 
         pub fn insert(self: *Self, comptime key: []const u8, comptime data: T) ?T {
-            var parent: Node = undefined;
+            var parent: *Node = undefined;
 
-            var current: Node = self.root;
-            comptime var search: []const u8 = key;
+            var current: *Node = &self.root;
+            var search: []const u8 = key;
 
             while (true) {
                 if (search.len == 0) {
@@ -78,57 +107,94 @@ pub fn RadixTree(comptime T: type) type {
                 if (current.edge(search[0])) |n| {
                     current = n;
                 } else {
-                    parent.addEdge(comptime .{
+                    var leaf = Leaf{
+                        .key = key,
+                        .data = data,
+                    };
+
+                    var new_node = Node{
+                        .leaf = leaf,
+                        .prefix = search,
+                        .edges = &[_]Edge{},
+                    };
+
+                    parent.addEdge(.{
                         .label = search[0],
-                        .node = Node{
-                            .leaf = Leaf{
-                                .key = key,
-                                .data = data,
-                            },
-                            .prefix = search,
-                            .edges = &[_]Edge{},
-                        },
+                        .node = new_node,
                     });
                     self.size += 1;
                     return null;
                 }
-            }
-        }
 
-        fn longestPrefix(self: *Self, comptime key: []const u8) ?[]const u8 {
-            var last: ?*Leaf = undefined;
+                const prefix = longestPrefix(search, current.prefix);
+                if (prefix == current.prefix.len) {
+                    search = search[prefix..];
+                    continue;
+                }
 
-            var current = self.root;
-            var search = key;
+                self.size += 1;
 
-            while (true) {
-                if (current.isLeaf())
-                    last = current.leaf.?;
+                var child = Node{
+                    .leaf = null,
+                    .edges = &[_]Edge{},
+                    .prefix = search[0..prefix],
+                };
 
-                if (search.len == 0) break;
+                parent.updateEdge(search[0], child);
 
-                current = current.edge(search[0]) orelse break;
+                child.addEdge(.{
+                    .label = current.prefix[prefix],
+                    .node = current,
+                });
 
-                if (std.mem.startsWith(u8, search, current.prefix))
-                    search = search[current.prefix.len..]
-                else
-                    break;
+                current.prefix = current.prefix[prefix..];
+
+                var leaf = Leaf{
+                    .key = key,
+                    .data = data,
+                };
+
+                search = search[prefix..];
+                if (search.len == 0) {
+                    child.leaf = leaf;
+                    return null;
+                }
+
+                const new_node = Node{
+                    .leaf = leaf,
+                    .prefix = search,
+                    .edges = &[_]Edge{},
+                };
+
+                child.addEdge(.{
+                    .label = search[0],
+                    .node = new_node,
+                });
+
+                return null;
             }
         }
     };
 }
 
 /// Finds the length of the longest prefix between 2 strings
-fn longestPrefix(lhs: []const u8, rhs: []const u8) usize {
-    var max = std.math.max(lhs.len, rhs.len);
+fn longestPrefix(comptime lhs: []const u8, comptime rhs: []const u8) usize {
+    var max = std.math.min(lhs.len, rhs.len);
 
     var i: usize = 0;
     return while (i < max) : (i += 1) {
         if (lhs[i] != rhs[i]) break i;
-    } else break i;
+    } else i;
 }
 
 test "Insertion" {
     comptime var radix = RadixTree(u32){};
-    comptime _ = radix.insert("hi", 1);
+    comptime const a = radix.insert("hi", 1);
+    comptime const b = radix.insert("hi2", 2);
+    comptime const c = radix.insert("hi2", 3);
+
+    testing.expectEqual(@as(usize, 2), radix.size);
+    testing.expectEqual(@as(?u32, null), a);
+    testing.expectEqual(@as(?u32, null), b);
+    testing.expectEqual(@as(?u32, 2), c);
 }
