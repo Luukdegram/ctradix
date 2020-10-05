@@ -5,17 +5,28 @@ pub fn RadixTree(comptime T: type) type {
     return struct {
         const Self = @This();
 
+        /// Represents a node within the tree
+        /// Is possible a Leaf or else contains edges to
+        /// other nodes
         const Node = struct {
+            /// Possible leaf
             leaf: ?Leaf,
+            /// Ignored prefix
             prefix: []const u8,
+            /// array of other edges
+            /// Can only be non-zero in case of non-Leaf
             edges: []Edge,
 
+            /// Returns true if `self` is a `Leaf` node
             fn isLeaf(self: Node) bool {
                 return self.leaf != null;
             }
 
+            /// Adds a new `Edge` in the `edges` list of the `Node`
             fn addEdge(self: *Node, comptime e: Edge) void {
                 if (self.edges.len == 0) {
+                    // required to declare an array or else it will be cost
+                    // whereas `edges` is []Edge and not []const Edge
                     var edges: [1]Edge = .{e};
                     self.edges = &edges;
                     return;
@@ -28,6 +39,8 @@ pub fn RadixTree(comptime T: type) type {
                 self.edges = &edges;
             }
 
+            /// Updates the edge's node that contains the given label with the new Node
+            /// It's a Compiler error if the Edge does not yet exist
             fn updateEdge(self: *Node, comptime label: u8, comptime node: Node) void {
                 const idx = blk: {
                     var i: usize = 0;
@@ -38,16 +51,19 @@ pub fn RadixTree(comptime T: type) type {
                 };
 
                 if (idx < self.edges.len and self.edges[idx].label == label) {
-                    self.edges[idx] = node;
+                    self.edges[idx].node = node;
                 }
 
                 @compileError("Edge with label '" ++ &[_]u8{u8} ++ "' does not exist\n");
             }
 
+            /// Used for std.sort.sort() function to determine order
             fn lessThan(ctx: void, comptime lhs: Edge, comptime rhs: Edge) bool {
                 return lhs.label < rhs.label;
             }
 
+            /// Retrieves a Node based on the given `label`
+            /// Returns `null` if no Node exists with given label
             fn edge(self: *Node, comptime label: u8) ?*Node {
                 const idx = blk: {
                     var i: usize = 0;
@@ -64,23 +80,31 @@ pub fn RadixTree(comptime T: type) type {
             }
         };
 
+        /// End node of the tree, contains the key and data component
         const Leaf = struct {
             key: []const u8,
             data: T,
         };
 
+        /// Specific node within the tree, contains the label (character)
+        /// and reference to another node
         const Edge = struct {
             label: u8,
             node: Node,
         };
 
+        /// Root node
         root: Node = .{
             .leaf = null,
             .prefix = "",
             .edges = &[_]Edge{},
         },
+        
+        /// Total edges within the tree
         size: usize = 0,
 
+        /// Inserts or updates a Node based on the `key` and `data` where
+        /// `data` is of type `T`
         pub fn insert(self: *Self, comptime key: []const u8, comptime data: T) ?T {
             var parent: *Node = undefined;
 
@@ -88,7 +112,9 @@ pub fn RadixTree(comptime T: type) type {
             var search: []const u8 = key;
 
             while (true) {
+                // reached end of tree, create leaf
                 if (search.len == 0) {
+                    // leaf exists? update data
                     if (current.isLeaf()) {
                         const temp = current.leaf.?.data;
                         current.leaf.?.data = data;
@@ -104,6 +130,8 @@ pub fn RadixTree(comptime T: type) type {
                 }
 
                 parent = current;
+                // get existing edge if it exists so we can update it
+                // else create a new `Edge`
                 if (current.edge(search[0])) |n| {
                     current = n;
                 } else {
@@ -126,14 +154,17 @@ pub fn RadixTree(comptime T: type) type {
                     return null;
                 }
 
+                // determine the length of the prefix
                 const prefix = longestPrefix(search, current.prefix);
                 if (prefix == current.prefix.len) {
+                    // basically we jump directly to creating/updating the leaf
                     search = search[prefix..];
                     continue;
                 }
 
                 self.size += 1;
 
+                // Split the node into 2 Edges
                 var child = Node{
                     .leaf = null,
                     .edges = &[_]Edge{},
@@ -178,6 +209,10 @@ pub fn RadixTree(comptime T: type) type {
 }
 
 /// Finds the length of the longest prefix between 2 strings
+/// i.e.:
+/// lhs: foop
+/// rhs: foobar
+/// result: 2 -> matches foo as prefix
 fn longestPrefix(comptime lhs: []const u8, comptime rhs: []const u8) usize {
     var max = std.math.min(lhs.len, rhs.len);
 
