@@ -64,7 +64,7 @@ pub fn RadixTree(comptime T: type) type {
 
             /// Retrieves a Node based on the given `label`
             /// Returns `null` if no Node exists with given label
-            fn edge(self: *Node, comptime label: u8) ?*Node {
+            fn edge(self: *Node, label: u8) ?*Node {
                 const idx = blk: {
                     var i: usize = 0;
                     while (i < self.edges.len) : (i += 1) {
@@ -99,7 +99,7 @@ pub fn RadixTree(comptime T: type) type {
             .prefix = "",
             .edges = &[_]Edge{},
         },
-        
+
         /// Total edges within the tree
         size: usize = 0,
 
@@ -205,6 +205,27 @@ pub fn RadixTree(comptime T: type) type {
                 return null;
             }
         }
+
+        /// Searches for a result using the given `key`
+        /// Returns null if key is not found
+        /// Returns `T` if found
+        pub fn get(self: *Self, key: []const u8) ?T {
+            var current = &self.root;
+            var search = key;
+            while (true) {
+                if (search.len == 0)
+                    return if (current.isLeaf()) current.leaf.?.data else null;
+
+                current = current.edge(search[0]) orelse return null;
+
+                if (std.mem.startsWith(u8, search, current.prefix))
+                    search = search[current.prefix.len..]
+                else
+                    break;
+            }
+
+            return null;
+        }
     };
 }
 
@@ -232,4 +253,17 @@ test "Insertion" {
     testing.expectEqual(@as(?u32, null), a);
     testing.expectEqual(@as(?u32, null), b);
     testing.expectEqual(@as(?u32, 2), c);
+}
+
+test "Lookup value" {
+    comptime var radix = RadixTree(u32){};
+    comptime _ = radix.insert("hello", 1);
+    comptime _ = radix.insert("hello2", 2);
+
+    const result = radix.get("hello");
+    const result2 = radix.get("hello2");
+    const result3 = radix.get("foo");
+    testing.expectEqual(@as(?u32, 1), result);
+    testing.expectEqual(@as(?u32, 2), result2);
+    testing.expectEqual(@as(?u32, null), result3);
 }
