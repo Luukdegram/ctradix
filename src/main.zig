@@ -36,15 +36,9 @@ pub fn RadixTree(comptime T: type) type {
             /// It's a Compiler error if the Edge does not yet exist
             fn updateEdge(self: *Node, comptime label: u8, comptime node: *Node) void {
                 const idx = blk: {
-                    var i: u32 = 0;
-                    var j: u32 = @intCast(u32, self.edges.len);
-                    while (i < j) {
-                        const h = i + j >> 1;
-
-                        if (self.edges[h].label >= label)
-                            j = h
-                        else
-                            i = h + 1;
+                    var i: usize = 0;
+                    while (i < self.edges.len) : (i += 1) {
+                        if (self.edges[i].label >= label) break;
                     }
                     break :blk i;
                 };
@@ -67,15 +61,9 @@ pub fn RadixTree(comptime T: type) type {
             fn edge(self: *Node, label: u8) ?*Node {
                 @setEvalBranchQuota(100_000);
                 const idx = blk: {
-                    var i: u32 = 0;
-                    var j: u32 = @intCast(u32, self.edges.len);
-                    while (i < j) {
-                        const h = i + j >> 1;
-
-                        if (self.edges[h].label >= label)
-                            j = h
-                        else
-                            i = h + 1;
+                    var i: usize = 0;
+                    while (i < self.edges.len) : (i += 1) {
+                        if (self.edges[i].label >= label) break;
                     }
                     break :blk i;
                 };

@@ -38,7 +38,7 @@ edit build.zig if you want to enable other build modes as well.
 
 Searches for 300 words, 50.000 times for 3 instances
 ```
-StringHashMap             0175ms  0177ms  0173ms
-StringArrayHashMap        0275ms  0234ms  0229ms
-RadixTree                 0630ms  0628ms  0636ms
+StringHashMap             0177ms  0175ms  0175ms
+StringArrayHashMap        0228ms  0241ms  0241ms
+RadixTree                 0393ms  0389ms  0392ms
 ```
