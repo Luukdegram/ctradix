@@ -29,7 +29,7 @@ pub fn main() !void {
     var array_map_results: [3]u64 = undefined;
     var radix_results: [3]u64 = undefined;
 
-    const loops = 10_000;
+    const loops = 50_000;
 
     defer map.deinit();
 
@@ -40,7 +40,7 @@ pub fn main() !void {
         try array_map.putNoClobber(val, i);
     }
 
-    log.warn("Start benching {} words\t[0]\t[1]\t[2]", .{i});
+    log.alert("Start benching {} words\t[0]\t[1]\t[2]", .{i});
     std.debug.assert(radix.size == i);
 
     for (map_results) |*r| {
@@ -54,7 +54,7 @@ pub fn main() !void {
         r.* = timer.read();
     }
 
-    log.warn("StringHashMap\t\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+    log.alert("StringHashMap\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
         map_results[0] / 1_000_000,
         map_results[1] / 1_000_000,
         map_results[2] / 1_000_000,
@@ -71,7 +71,7 @@ pub fn main() !void {
         r.* = timer.read();
     }
 
-    log.warn("StringArrayHashMap\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+    log.alert("StringArrayHashMap\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
         array_map_results[0] / 1_000_000,
         array_map_results[1] / 1_000_000,
         array_map_results[2] / 1_000_000,
@@ -88,7 +88,7 @@ pub fn main() !void {
         r.* = timer.read();
     }
 
-    log.warn("RadixTree\t\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+    log.alert("RadixTree\t\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
         radix_results[0] / 1_000_000,
         radix_results[1] / 1_000_000,
         radix_results[2] / 1_000_000,

@@ -11,4 +11,11 @@ pub fn build(b: *Builder) void {
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
+
+    const bench = b.addExecutable("bench", "src/bench.zig");
+    bench.setBuildMode(.ReleaseFast);
+    const run_step = bench.run();
+
+    const bench_step = b.step("bench", "Runs the benchmark");
+    bench_step.dependOn(&run_step.step);
 }
