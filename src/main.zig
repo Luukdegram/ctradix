@@ -1,3 +1,8 @@
+// Copyright (c) 2020 Luuk de Gram
+//
+// This software is released under the MIT License.
+// https://opensource.org/licenses/MIT
+
 const std = @import("std");
 const testing = std.testing;
 
