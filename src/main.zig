@@ -214,8 +214,8 @@ pub fn RadixTree(comptime T: type) type {
             var current = self.root;
             var search = key;
             while (search.len != 0) {
-                //std.debug.print("Prefix: {s}\n", .{current.prefix});
                 current = (current.edge(search[0]) orelse return null).*;
+
                 if (std.mem.startsWith(u8, search, current.prefix))
                     search = search[current.prefix.len..]
                 else
@@ -231,11 +231,24 @@ pub fn RadixTree(comptime T: type) type {
         /// Returns null if nothing was found
         /// Returns `T` if prefix match was found
         pub fn getLongestPrefix(self: *Self, key: []const u8) ?T {
-            var last: Leaf = undefined;
+            var last: ?Leaf = undefined;
             var current = self.root;
             var search = key;
 
-            while (search.len != 0) {}
+            while (true) {
+                if (current.leaf) |leaf| last = leaf;
+
+                if (search.len == 0) break;
+
+                current = (current.edge(search[0]) orelse break).*;
+
+                if (std.mem.startsWith(u8, search, current.prefix))
+                    search = search[current.prefix.len..]
+                else
+                    break;
+            }
+
+            return if (last) |l| l.data else null;
         }
     };
 }
@@ -280,4 +293,15 @@ test "Lookup value" {
     testing.expectEqual(@as(?u32, 1), result);
     testing.expectEqual(@as(?u32, 2), result2);
     testing.expectEqual(@as(?u32, null), result3);
+}
+
+test "Lookup longest prefix" {
+    comptime var radix = RadixTree(u32){};
+    comptime _ = radix.insert("foo", 1);
+    comptime _ = radix.insert("bar", 2);
+    comptime _ = radix.insert("foobar", 3);
+
+    const result = radix.getLongestPrefix("foobark");
+
+    testing.expectEqual(@as(?u32, 3), result);
 }
