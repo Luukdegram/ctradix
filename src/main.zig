@@ -17,11 +17,6 @@ pub fn RadixTree(comptime T: type) type {
             /// Can only be non-zero in case of non-Leaf
             edges: []Edge,
 
-            /// Returns true if `self` is a `Leaf` node
-            fn isLeaf(self: Node) bool {
-                return self.leaf != null;
-            }
-
             /// Adds a new `Edge` in the `edges` list of the `Node`
             fn addEdge(self: *Node, comptime e: Edge) void {
                 comptime var edges: [self.edges.len + 1]Edge = undefined;
@@ -36,16 +31,20 @@ pub fn RadixTree(comptime T: type) type {
             /// It's a Compiler error if the Edge does not yet exist
             fn updateEdge(self: *Node, comptime label: u8, comptime node: *Node) void {
                 const idx = blk: {
-                    var i: usize = 0;
-                    while (i < self.edges.len) {
-                        if (self.edges[i].label >= label) break;
-                        i += 1;
+                    var i: u32 = 0;
+                    var j: u32 = @intCast(u32, self.edges.len);
+                    while (i < j) {
+                        const h = i + j >> 1;
+
+                        if (self.edges[h].label >= label)
+                            j = h
+                        else
+                            i = h + 1;
                     }
                     break :blk i;
                 };
 
                 if (idx < self.edges.len and self.edges[idx].label == label) {
-                    //@compileLog("Edge has been updated\n");
                     self.edges[idx].node = node;
                     return;
                 }
@@ -63,10 +62,15 @@ pub fn RadixTree(comptime T: type) type {
             fn edge(self: *Node, label: u8) ?*Node {
                 @setEvalBranchQuota(100_000);
                 const idx = blk: {
-                    var i: usize = 0;
-                    while (i < self.edges.len) {
-                        if (self.edges[i].label >= label) break;
-                        i += 1;
+                    var i: u32 = 0;
+                    var j: u32 = @intCast(u32, self.edges.len);
+                    while (i < j) {
+                        const h = i + j >> 1;
+
+                        if (self.edges[h].label >= label)
+                            j = h
+                        else
+                            i = h + 1;
                     }
                     break :blk i;
                 };
@@ -112,9 +116,9 @@ pub fn RadixTree(comptime T: type) type {
                 // reached end of tree, create leaf
                 if (search.len == 0) {
                     // leaf exists? update data
-                    if (current.isLeaf()) {
-                        const temp = current.leaf.?.data;
-                        current.leaf.?.data = data;
+                    if (current.leaf) |*leaf| {
+                        const temp = leaf.data;
+                        leaf.data = data;
                         return temp;
                     }
 
@@ -171,7 +175,7 @@ pub fn RadixTree(comptime T: type) type {
                 parent.updateEdge(search[0], &child);
 
                 child.addEdge(.{
-                    .label = current.prefix[prefix - 1],
+                    .label = current.prefix[prefix],
                     .node = current,
                 });
 
@@ -210,15 +214,28 @@ pub fn RadixTree(comptime T: type) type {
             var current = self.root;
             var search = key;
             while (search.len != 0) {
+                //std.debug.print("Prefix: {s}\n", .{current.prefix});
                 current = (current.edge(search[0]) orelse return null).*;
-
                 if (std.mem.startsWith(u8, search, current.prefix))
                     search = search[current.prefix.len..]
                 else
                     break;
             }
 
-            return if (current.isLeaf()) current.leaf.?.data else null;
+            return if (current.leaf) |leaf| leaf.data else null;
+        }
+
+        /// Rather than searching for the exact match, it will return the longest prefix match
+        /// i.e. If "hello" exists as leaf, and the given `key` is "helloworld", this will return
+        /// `T` that belongs to prefix "hello".
+        /// Returns null if nothing was found
+        /// Returns `T` if prefix match was found
+        pub fn getLongestPrefix(self: *Self, key: []const u8) ?T {
+            var last: Leaf = undefined;
+            var current = self.root;
+            var search = key;
+
+            while (search.len != 0) {}
         }
     };
 }
@@ -256,8 +273,6 @@ test "Lookup value" {
     comptime _ = radix.insert("aardvark", 3);
     comptime _ = radix.insert("aaardvark", 4);
 
-    printEdges(radix.root.edges);
-
     const result = radix.get("hello");
     const result2 = radix.get("hello2");
     const result3 = radix.get("foo");
@@ -265,15 +280,4 @@ test "Lookup value" {
     testing.expectEqual(@as(?u32, 1), result);
     testing.expectEqual(@as(?u32, 2), result2);
     testing.expectEqual(@as(?u32, null), result3);
-}
-
-fn printEdges(edges: anytype) void {
-    for (edges) |edge| {
-        std.debug.print("Edge {s}\n", .{&[_]u8{edge.label}});
-        if (edge.node.isLeaf()) {
-            std.debug.print("Leaf: {s}\n", .{edge.node.leaf.?.key});
-            //continue;
-        }
-        printEdges(edge.node.edges);
-    }
 }
