@@ -25,8 +25,7 @@ pub fn RadixTree(comptime T: type) type {
             /// Adds a new `Edge` in the `edges` list of the `Node`
             fn addEdge(self: *Node, comptime e: Edge) void {
                 comptime var edges: [self.edges.len + 1]Edge = undefined;
-                std.mem.copy(Edge, &edges, self.edges[0..]);
-                edges[edges.len - 1] = e;
+                std.mem.copy(Edge, &edges, self.edges ++ &[_]Edge{e});
 
                 std.sort.sort(Edge, &edges, {}, lessThan);
                 self.edges = &edges;
@@ -224,12 +223,12 @@ pub fn RadixTree(comptime T: type) type {
         /// Returns null if nothing was found
         /// Returns `T` if prefix match was found
         pub fn getLongestPrefix(self: *Self, key: []const u8) ?T {
-            var last: ?Leaf = undefined;
+            var last: ?T = null;
             var current = self.root;
             var search = key;
 
             while (true) {
-                if (current.leaf) |leaf| last = leaf;
+                if (current.leaf) |leaf| last = leaf.data;
 
                 if (search.len == 0) break;
 
@@ -241,7 +240,7 @@ pub fn RadixTree(comptime T: type) type {
                     break;
             }
 
-            return if (last) |l| l.data else null;
+            return last;
         }
     };
 }
