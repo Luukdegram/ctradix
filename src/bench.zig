@@ -23,13 +23,13 @@ pub fn main() !void {
         _ = radix.insert(words[index..], count);
     }
 
-    //_ = radix.get("aardvark").?;
-
     var map = std.StringHashMap(u32).init(gpa);
     var array_map = std.StringArrayHashMap(u32).init(gpa);
     var map_results: [3]u64 = undefined;
     var array_map_results: [3]u64 = undefined;
     var radix_results: [3]u64 = undefined;
+
+    const loops = 10_000;
 
     defer map.deinit();
 
@@ -40,54 +40,57 @@ pub fn main() !void {
         try array_map.putNoClobber(val, i);
     }
 
-    log.warn("Start benching {} words\t[0]\t\t[1]\t\t[2]", .{i});
+    log.warn("Start benching {} words\t[0]\t[1]\t[2]", .{i});
     std.debug.assert(radix.size == i);
 
     for (map_results) |*r| {
-        it.index = 0;
-
         var timer = try Timer.start();
-        while (it.next()) |val| {
-            _ = map.get(val).?;
+        for (@as([loops]u8, undefined)) |_| {
+            it.index = 0;
+            while (it.next()) |val| {
+                _ = map.get(val).?;
+            }
         }
         r.* = timer.read();
     }
 
-    log.warn("StringHashMap\t\t\t{:0>6}ns\t{:0>6}ns\t{:0>6}ns", .{
-        map_results[0],
-        map_results[1],
-        map_results[2],
+    log.warn("StringHashMap\t\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+        map_results[0] / 1_000_000,
+        map_results[1] / 1_000_000,
+        map_results[2] / 1_000_000,
     });
 
     for (array_map_results) |*r| {
-        it.index = 0;
-
         var timer = try Timer.start();
-        while (it.next()) |val| {
-            _ = array_map.get(val).?;
+        for (@as([loops]u8, undefined)) |_| {
+            it.index = 0;
+            while (it.next()) |val| {
+                _ = array_map.get(val).?;
+            }
         }
         r.* = timer.read();
     }
 
-    log.warn("StringArrayHashMap\t\t{:0>6}ns\t{:0>6}ns\t{:0>6}ns", .{
-        array_map_results[0],
-        array_map_results[1],
-        array_map_results[2],
+    log.warn("StringArrayHashMap\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+        array_map_results[0] / 1_000_000,
+        array_map_results[1] / 1_000_000,
+        array_map_results[2] / 1_000_000,
     });
 
     for (radix_results) |*r| {
-        it.index = 0;
-
         var timer = try Timer.start();
-        while (it.next()) |val| {
-            _ = radix.get(val).?;
+        for (@as([loops]u8, undefined)) |_| {
+            it.index = 0;
+            while (it.next()) |val| {
+                _ = radix.get(val).?;
+            }
         }
         r.* = timer.read();
     }
 
-    log.warn("RadixTree\t\t\t{:0>6}ns\t{:0>6}ns\t{:0>6}ns", .{
-        radix_results[0],
-        radix_results[1],
-        radix_results[2],
+    log.warn("RadixTree\t\t\t{:0>4}ms\t{:0>4}ms\t{:0>4}ms", .{
+        radix_results[0] / 1_000_000,
+        radix_results[1] / 1_000_000,
+        radix_results[2] / 1_000_000,
     });
 }
