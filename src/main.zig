@@ -6,7 +6,11 @@
 const std = @import("std");
 const testing = std.testing;
 
-pub fn RadixTree(comptime K: type, comptime V: type) type {
+pub fn RadixTree(
+    comptime K: type,
+    comptime V: type,
+    comptime cmp: fn (K, K) bool,
+) type {
     return struct {
         const Self = @This();
 
@@ -27,7 +31,6 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
                 comptime var edges: [self.edges.len + 1]Edge = undefined;
                 std.mem.copy(Edge, &edges, self.edges ++ &[_]Edge{e});
 
-                std.sort.sort(Edge, &edges, {}, lessThan);
                 self.edges = &edges;
             }
 
@@ -37,22 +40,17 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
                 const idx = blk: {
                     var i: usize = 0;
                     while (i < self.edges.len) : (i += 1) {
-                        if (self.edges[i].label >= label) break;
+                        if (cmp(self.edges[i].label, label)) break;
                     }
                     break :blk i;
                 };
 
-                if (idx < self.edges.len and self.edges[idx].label == label) {
+                if (idx < self.edges.len and cmp(self.edges[idx].label, label)) {
                     self.edges[idx].node = node;
                     return;
                 }
 
                 @compileError("Edge with label '" ++ &[_]K{label} ++ "' does not exist\n");
-            }
-
-            /// Used for std.sort.sort() function to determine order
-            fn lessThan(ctx: void, lhs: Edge, rhs: Edge) bool {
-                return lhs.label < rhs.label;
             }
 
             /// Retrieves a Node based on the given `label`
@@ -62,12 +60,12 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
                 const idx = blk: {
                     var i: usize = 0;
                     while (i < self.edges.len) : (i += 1) {
-                        if (self.edges[i].label >= label) break;
+                        if (cmp(self.edges[i].label, label)) break;
                     }
                     break :blk i;
                 };
 
-                if (idx < self.edges.len and self.edges[idx].label == label)
+                if (idx < self.edges.len and cmp(self.edges[idx].label, label))
                     return self.edges[idx].node;
 
                 return null;
@@ -148,7 +146,7 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
                 }
 
                 // determine the length of the prefix
-                const prefix = longestPrefix(K, search, current.prefix);
+                const prefix = longestPrefix(K, search, current.prefix, cmp);
                 if (prefix == current.prefix.len) {
                     // basically we jump directly to creating/updating the leaf
                     search = search[prefix..];
@@ -208,7 +206,7 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
             while (search.len != 0) {
                 current = (current.edge(search[0]) orelse return null).*;
 
-                if (std.mem.startsWith(K, search, current.prefix))
+                if (startsWith(K, search, current.prefix, cmp))
                     search = search[current.prefix.len..]
                 else
                     break;
@@ -234,7 +232,7 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
 
                 current = (current.edge(search[0]) orelse break).*;
 
-                if (std.mem.startsWith(K, search, current.prefix))
+                if (startsWith(K, search, current.prefix, cmp))
                     search = search[current.prefix.len..]
                 else
                     break;
@@ -250,17 +248,58 @@ pub fn RadixTree(comptime K: type, comptime V: type) type {
 /// lhs: foop
 /// rhs: foobar
 /// result: 2 -> matches foo as prefix
-fn longestPrefix(comptime T: type, comptime lhs: []const T, comptime rhs: []const T) usize {
+fn longestPrefix(
+    comptime T: type,
+    comptime lhs: []const T,
+    comptime rhs: []const T,
+    comptime cmp: fn (T, T) bool,
+) usize {
     const max = if (lhs.len < rhs.len) lhs.len else rhs.len;
 
     var i: usize = 0;
     return while (i < max) : (i += 1) {
-        if (lhs[i] != rhs[i]) break i;
+        if (!cmp(lhs[i], rhs[i])) break i;
     } else i;
 }
 
+/// Generic startsWith function where user can provide the comparison function
+fn startsWith(
+    comptime T: type,
+    haystack: []const T,
+    needle: []const T,
+    cmp: fn (T, T) bool,
+) bool {
+    return if (needle.len > haystack.len) false else eql(T, haystack[0..needle.len], needle, cmp);
+}
+
+/// Compares two slices using a provided comparison function
+fn eql(
+    comptime T: type,
+    a: []const T,
+    b: []const T,
+    cmp: fn (T, T) bool,
+) bool {
+    if (a.len != b.len) return false;
+    if (a.ptr == b.ptr) return true;
+    for (a) |item, i| if (!cmp(item, b[i])) return false;
+    return true;
+}
+
+/// compares two u8's which is used inside the
+/// StringRadixTree as comparison function
+fn stringCmp(lhs: u8, rhs: u8) bool {
+    return lhs == rhs;
+}
+
+/// Creates a Radix Tree where the key is composed of a string, rather
+/// than a generic type. This function is solely for convencience. If a
+/// generic key is required, use the regular RadixTree.
+pub fn StringRadixTree(comptime T: type) type {
+    return RadixTree(u8, T, stringCmp);
+}
+
 test "Insertion (u8)" {
-    comptime var radix = RadixTree(u8, u32){};
+    comptime var radix = StringRadixTree(u32){};
     comptime const a = radix.insert("hi", 1);
     comptime const b = radix.insert("hi2", 2);
     comptime const c = radix.insert("hi2", 3);
@@ -272,7 +311,7 @@ test "Insertion (u8)" {
 }
 
 test "Lookup value (u8)" {
-    comptime var radix = RadixTree(u8, u32){};
+    comptime var radix = StringRadixTree(u32){};
     comptime _ = radix.insert("hello", 1);
     comptime _ = radix.insert("hello2", 2);
     comptime _ = radix.insert("aardvark", 3);
@@ -288,7 +327,7 @@ test "Lookup value (u8)" {
 }
 
 test "Lookup longest prefix (u8)" {
-    comptime var radix = RadixTree(u8, u32){};
+    comptime var radix = StringRadixTree(u32){};
     comptime _ = radix.insert("foo", 1);
     comptime _ = radix.insert("bar", 2);
     comptime _ = radix.insert("foobar", 3);
@@ -298,8 +337,12 @@ test "Lookup longest prefix (u8)" {
     testing.expectEqual(@as(?u32, 3), result);
 }
 
+fn testCmp(lhs: u16, rhs: u16) bool {
+    return lhs == rhs;
+}
+
 test "Insertion (u16)" {
-    comptime var radix = RadixTree(u16, u32){};
+    comptime var radix = RadixTree(u16, u32, testCmp){};
     comptime const a = radix.insert(&[_]u16{ 'h', 'i' }, 1);
     comptime const b = radix.insert(&[_]u16{ 'h', 'i', '2' }, 2);
     comptime const c = radix.insert(&[_]u16{ 'h', 'i', '2' }, 3);
@@ -311,7 +354,7 @@ test "Insertion (u16)" {
 }
 
 test "Lookup value (u16)" {
-    comptime var radix = RadixTree(u16, u32){};
+    comptime var radix = RadixTree(u16, u32, testCmp){};
     comptime _ = radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o' }, 1);
     comptime _ = radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o', '2' }, 2);
     comptime _ = radix.insert(&[_]u16{ 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }, 3);
@@ -327,7 +370,7 @@ test "Lookup value (u16)" {
 }
 
 test "Lookup longest prefix (u16)" {
-    comptime var radix = RadixTree(u16, u32){};
+    comptime var radix = RadixTree(u16, u32, testCmp){};
     comptime _ = radix.insert(&[_]u16{ 'f', 'o', 'o' }, 1);
     comptime _ = radix.insert(&[_]u16{ 'b', 'a', 'r' }, 2);
     comptime _ = radix.insert(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r' }, 3);
@@ -335,4 +378,32 @@ test "Lookup longest prefix (u16)" {
     const result = radix.getLongestPrefix(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r', 'k' });
 
     testing.expectEqual(@as(?u32, 3), result);
+}
+
+test "Struct as key" {
+    const Key = struct {
+        x: u32,
+        y: u32,
+
+        fn cmp(lhs: @This(), rhs: @This()) bool {
+            return lhs.x == rhs.x and lhs.y == rhs.y;
+        }
+    };
+
+    comptime var radix = RadixTree(Key, u32, Key.cmp){};
+    comptime _ = radix.insert(&[_]Key{
+        .{ .x = 1, .y = 1 },
+        .{ .x = 2, .y = 2 },
+    }, 1);
+    comptime _ = radix.insert(&[_]Key{
+        .{ .x = 5, .y = 5 },
+        .{ .x = 6, .y = 6 },
+    }, 2);
+
+    const result = radix.get(&[_]Key{
+        .{ .x = 5, .y = 5 },
+        .{ .x = 6, .y = 6 },
+    });
+
+    testing.expectEqual(@as(?u32, 2), result);
 }

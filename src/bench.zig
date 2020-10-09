@@ -7,7 +7,7 @@ const words = @embedFile("testdata/words.txt");
 const gpa = testing.allocator;
 
 pub fn main() !void {
-    comptime var radix = @import("main.zig").RadixTree(u8, u32){};
+    comptime var radix = @import("main.zig").StringRadixTree(u32){};
     comptime {
         @setEvalBranchQuota(10_000);
         comptime var index: usize = 0;
