@@ -95,9 +95,19 @@ pub fn RadixTree(
         /// Total edges within the tree
         size: usize = 0,
 
+        /// Mininum length of keys
+        min_len: usize = std.math.maxInt(usize),
+
+        /// Maximum length of keys
+        max_len: usize = 0,
+
         /// Inserts or updates a Node based on the `key` and `data` where
         /// `data` is of type `V`
         pub fn insert(self: *Self, comptime key: []const K, comptime data: V) ?V {
+            if (key.len < self.min_len) self.min_len = key.len;
+
+            if (key.len > self.max_len) self.max_len = key.len;
+
             var parent: *Node = undefined;
 
             var current: *Node = &self.root;
@@ -305,6 +315,8 @@ test "Insertion (u8)" {
     comptime const c = radix.insert("hi2", 3);
 
     testing.expectEqual(@as(usize, 2), radix.size);
+    testing.expectEqual(@as(usize, 2), radix.min_len);
+    testing.expectEqual(@as(usize, 3), radix.max_len);
     testing.expectEqual(@as(?u32, null), a);
     testing.expectEqual(@as(?u32, null), b);
     testing.expectEqual(@as(?u32, 2), c);
@@ -348,6 +360,8 @@ test "Insertion (u16)" {
     comptime const c = radix.insert(&[_]u16{ 'h', 'i', '2' }, 3);
 
     testing.expectEqual(@as(usize, 2), radix.size);
+    testing.expectEqual(@as(usize, 2), radix.min_len);
+    testing.expectEqual(@as(usize, 3), radix.max_len);
     testing.expectEqual(@as(?u32, null), a);
     testing.expectEqual(@as(?u32, null), b);
     testing.expectEqual(@as(?u32, 2), c);
