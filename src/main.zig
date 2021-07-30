@@ -209,7 +209,7 @@ pub fn RadixTree(
                 if (startsWith(K, search, current.prefix, cmp))
                     search = search[current.prefix.len..]
                 else
-                    break;
+                    return null;
             }
 
             return if (current.leaf) |leaf| leaf.data else null;
@@ -304,10 +304,10 @@ test "Insertion (u8)" {
     comptime const b = radix.insert("hi2", 2);
     comptime const c = radix.insert("hi2", 3);
 
-    testing.expectEqual(@as(usize, 2), radix.size);
-    testing.expectEqual(@as(?u32, null), a);
-    testing.expectEqual(@as(?u32, null), b);
-    testing.expectEqual(@as(?u32, 2), c);
+    try testing.expectEqual(@as(usize, 2), radix.size);
+    try testing.expectEqual(@as(?u32, null), a);
+    try testing.expectEqual(@as(?u32, null), b);
+    try testing.expectEqual(@as(?u32, 2), c);
 }
 
 test "Lookup value (u8)" {
@@ -321,9 +321,10 @@ test "Lookup value (u8)" {
     const result2 = radix.get("hello2");
     const result3 = radix.get("foo");
     _ = radix.get("aardvark").?;
-    testing.expectEqual(@as(?u32, 1), result);
-    testing.expectEqual(@as(?u32, 2), result2);
-    testing.expectEqual(@as(?u32, null), result3);
+
+    try testing.expectEqual(@as(?u32, 1), result);
+    try testing.expectEqual(@as(?u32, 2), result2);
+    try testing.expectEqual(@as(?u32, null), result3);
 }
 
 test "Lookup longest prefix (u8)" {
@@ -334,7 +335,7 @@ test "Lookup longest prefix (u8)" {
 
     const result = radix.getLongestPrefix("foobark");
 
-    testing.expectEqual(@as(?u32, 3), result);
+    try testing.expectEqual(@as(?u32, 3), result);
 }
 
 fn testCmp(lhs: u16, rhs: u16) bool {
@@ -347,10 +348,10 @@ test "Insertion (u16)" {
     comptime const b = radix.insert(&[_]u16{ 'h', 'i', '2' }, 2);
     comptime const c = radix.insert(&[_]u16{ 'h', 'i', '2' }, 3);
 
-    testing.expectEqual(@as(usize, 2), radix.size);
-    testing.expectEqual(@as(?u32, null), a);
-    testing.expectEqual(@as(?u32, null), b);
-    testing.expectEqual(@as(?u32, 2), c);
+    try testing.expectEqual(@as(usize, 2), radix.size);
+    try testing.expectEqual(@as(?u32, null), a);
+    try testing.expectEqual(@as(?u32, null), b);
+    try testing.expectEqual(@as(?u32, 2), c);
 }
 
 test "Lookup value (u16)" {
@@ -364,9 +365,9 @@ test "Lookup value (u16)" {
     const result2 = radix.get(&[_]u16{ 'h', 'e', 'l', 'l', 'o', '2' });
     const result3 = radix.get(&[_]u16{ 'f', 'o', 'o' });
     _ = radix.get(&[_]u16{ 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }).?;
-    testing.expectEqual(@as(?u32, 1), result);
-    testing.expectEqual(@as(?u32, 2), result2);
-    testing.expectEqual(@as(?u32, null), result3);
+    try testing.expectEqual(@as(?u32, 1), result);
+    try testing.expectEqual(@as(?u32, 2), result2);
+    try testing.expectEqual(@as(?u32, null), result3);
 }
 
 test "Lookup longest prefix (u16)" {
@@ -377,7 +378,7 @@ test "Lookup longest prefix (u16)" {
 
     const result = radix.getLongestPrefix(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r', 'k' });
 
-    testing.expectEqual(@as(?u32, 3), result);
+    try testing.expectEqual(@as(?u32, 3), result);
 }
 
 test "Struct as key" {
@@ -405,5 +406,22 @@ test "Struct as key" {
         .{ .x = 6, .y = 6 },
     });
 
-    testing.expectEqual(@as(?u32, 2), result);
+    try testing.expectEqual(@as(?u32, 2), result);
+}
+
+test "'get' ignores partial results" {
+    comptime var radix = StringRadixTree(u32){};
+    comptime _ = radix.insert("await", 0);
+    comptime _ = radix.insert("awaitable", 1);
+    comptime _ = radix.insert("async", 2);
+
+    //Partial results should fail
+    try testing.expect(radix.get("aws") == null);
+    try testing.expect(radix.get("asnc") == null);
+    try testing.expect(radix.get("asyn") == null);
+
+    //Full results should be found
+    try testing.expect(radix.get("await") == @as(u32, 0));
+    try testing.expect(radix.get("awaitable") == @as(u32, 1));
+    try testing.expect(radix.get("async") == @as(u32, 2));
 }
