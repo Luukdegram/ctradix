@@ -300,9 +300,9 @@ pub fn StringRadixTree(comptime T: type) type {
 
 test "Insertion (u8)" {
     comptime var radix = StringRadixTree(u32){};
-    comptime const a = radix.insert("hi", 1);
-    comptime const b = radix.insert("hi2", 2);
-    comptime const c = radix.insert("hi2", 3);
+    const a = comptime radix.insert("hi", 1);
+    const b = comptime radix.insert("hi2", 2);
+    const c = comptime radix.insert("hi2", 3);
 
     try testing.expectEqual(@as(usize, 2), radix.size);
     try testing.expectEqual(@as(?u32, null), a);
@@ -312,10 +312,10 @@ test "Insertion (u8)" {
 
 test "Lookup value (u8)" {
     comptime var radix = StringRadixTree(u32){};
-    comptime _ = radix.insert("hello", 1);
-    comptime _ = radix.insert("hello2", 2);
-    comptime _ = radix.insert("aardvark", 3);
-    comptime _ = radix.insert("aaardvark", 4);
+    _ = comptime radix.insert("hello", 1);
+    _ = comptime radix.insert("hello2", 2);
+    _ = comptime radix.insert("aardvark", 3);
+    _ = comptime radix.insert("aaardvark", 4);
 
     const result = radix.get("hello");
     const result2 = radix.get("hello2");
@@ -329,9 +329,9 @@ test "Lookup value (u8)" {
 
 test "Lookup longest prefix (u8)" {
     comptime var radix = StringRadixTree(u32){};
-    comptime _ = radix.insert("foo", 1);
-    comptime _ = radix.insert("bar", 2);
-    comptime _ = radix.insert("foobar", 3);
+    _ = comptime radix.insert("foo", 1);
+    _ = comptime radix.insert("bar", 2);
+    _ = comptime radix.insert("foobar", 3);
 
     const result = radix.getLongestPrefix("foobark");
 
@@ -344,9 +344,9 @@ fn testCmp(lhs: u16, rhs: u16) bool {
 
 test "Insertion (u16)" {
     comptime var radix = RadixTree(u16, u32, testCmp){};
-    comptime const a = radix.insert(&[_]u16{ 'h', 'i' }, 1);
-    comptime const b = radix.insert(&[_]u16{ 'h', 'i', '2' }, 2);
-    comptime const c = radix.insert(&[_]u16{ 'h', 'i', '2' }, 3);
+    const a = comptime radix.insert(&[_]u16{ 'h', 'i' }, 1);
+    const b = comptime radix.insert(&[_]u16{ 'h', 'i', '2' }, 2);
+    const c = comptime radix.insert(&[_]u16{ 'h', 'i', '2' }, 3);
 
     try testing.expectEqual(@as(usize, 2), radix.size);
     try testing.expectEqual(@as(?u32, null), a);
@@ -356,10 +356,10 @@ test "Insertion (u16)" {
 
 test "Lookup value (u16)" {
     comptime var radix = RadixTree(u16, u32, testCmp){};
-    comptime _ = radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o' }, 1);
-    comptime _ = radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o', '2' }, 2);
-    comptime _ = radix.insert(&[_]u16{ 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }, 3);
-    comptime _ = radix.insert(&[_]u16{ 'a', 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }, 4);
+    _ = comptime radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o' }, 1);
+    _ = comptime radix.insert(&[_]u16{ 'h', 'e', 'l', 'l', 'o', '2' }, 2);
+    _ = comptime radix.insert(&[_]u16{ 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }, 3);
+    _ = comptime radix.insert(&[_]u16{ 'a', 'a', 'a', 'r', 'd', 'v', 'a', 'r', 'k' }, 4);
 
     const result = radix.get(&[_]u16{ 'h', 'e', 'l', 'l', 'o' });
     const result2 = radix.get(&[_]u16{ 'h', 'e', 'l', 'l', 'o', '2' });
@@ -372,9 +372,9 @@ test "Lookup value (u16)" {
 
 test "Lookup longest prefix (u16)" {
     comptime var radix = RadixTree(u16, u32, testCmp){};
-    comptime _ = radix.insert(&[_]u16{ 'f', 'o', 'o' }, 1);
-    comptime _ = radix.insert(&[_]u16{ 'b', 'a', 'r' }, 2);
-    comptime _ = radix.insert(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r' }, 3);
+    _ = comptime radix.insert(&[_]u16{ 'f', 'o', 'o' }, 1);
+    _ = comptime radix.insert(&[_]u16{ 'b', 'a', 'r' }, 2);
+    _ = comptime radix.insert(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r' }, 3);
 
     const result = radix.getLongestPrefix(&[_]u16{ 'f', 'o', 'o', 'b', 'a', 'r', 'k' });
 
@@ -392,11 +392,11 @@ test "Struct as key" {
     };
 
     comptime var radix = RadixTree(Key, u32, Key.cmp){};
-    comptime _ = radix.insert(&[_]Key{
+    _ = comptime radix.insert(&[_]Key{
         .{ .x = 1, .y = 1 },
         .{ .x = 2, .y = 2 },
     }, 1);
-    comptime _ = radix.insert(&[_]Key{
+    _ = comptime radix.insert(&[_]Key{
         .{ .x = 5, .y = 5 },
         .{ .x = 6, .y = 6 },
     }, 2);
@@ -411,9 +411,9 @@ test "Struct as key" {
 
 test "'get' ignores partial results" {
     comptime var radix = StringRadixTree(u32){};
-    comptime _ = radix.insert("await", 0);
-    comptime _ = radix.insert("awaitable", 1);
-    comptime _ = radix.insert("async", 2);
+    _ = comptime radix.insert("await", 0);
+    _ = comptime radix.insert("awaitable", 1);
+    _ = comptime radix.insert("async", 2);
 
     //Partial results should fail
     try testing.expect(radix.get("aws") == null);
