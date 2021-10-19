@@ -33,7 +33,7 @@ pub fn main() !void {
 
     defer map.deinit();
 
-    var it = std.mem.split(words, "\n");
+    var it = std.mem.split(u8, words, "\n");
     var i: u32 = 0;
     while (it.next()) |val| : (i += 1) {
         try map.putNoClobber(val, i);
